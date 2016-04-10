@@ -1,0 +1,148 @@
+﻿
+@{
+    ViewBag.Title = "BasicKoGrid";
+}
+
+<h2>BasicKoGrid</h2>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-primary list-panel" id="list-panel">
+            <div class="panel-heading list-panel-heading">
+                <h3 class="panel-title list-panel-title">Products</h3>
+                <button type="button" class="btn btn-default btn-md refresh-button" data-bind="click: get">
+                    <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Refresh
+                </button>
+            </div>
+            <div class="panel-body">
+                <div class="gridStyle" data-bind="koGrid: gridOptions"></div>
+            </div>
+            <img src="~/Content/Images/ajax-loader.gif" id="loading-indicator" class="loading-indicator" />
+        </div>
+    </div>
+</div>
+
+@section scripts{
+    <script type="text/javascript">
+       $(function () {
+
+            var $loadingIndicator = $('#loading-indicator');
+
+            var productsUri = '/api/product';
+
+            ///////////////////////////////////////////////////////////////////
+            // Product
+
+            var Product = function (productId, name, description, productCategoryName) {
+                var self = this;
+
+                // Properties
+
+                self.productId = ko.observable(productId);
+                self.name = ko.observable(name);
+                self.description = ko.observable(description);
+                self.productCategoryName = ko.observable(productCategoryName);
+            }
+
+            ///////////////////////////////////////////////////////////////////
+            // Product List
+
+            var ProductListVM = function () {
+                var self = this;
+
+                // Properties
+                self.products = ko.observableArray([]);
+
+                self.columnDefs = [
+                   { field: 'productId', displayName: 'Id', width: 100 },
+                   { field: 'name', displayName: 'Name', width: 200 },
+                   { field: 'description', displayName: 'Description' },
+                   { field: 'productCategoryName', displayName: 'Product Category', width: 200 }
+                ];
+
+                self.filterOptions = {
+                    filterText: ko.observable(""),
+                    useExternalFilter: false
+                };
+
+                self.pagingOptions = {
+                    currentPage: ko.observable(1),
+                    pageSizes: ko.observableArray([2, 5, 10, 20, 50]),
+                    pageSize: ko.observable(5),
+                    totalServerItems: ko.observable(0)
+                };
+
+                self.sortInfo = ko.observable({ column: { 'field': 'name'}, direction: 'asc' });
+
+                self.gridOptions = {
+                    data: self.products,
+                    columnDefs: self.columnDefs,
+                    autogenerateColumns: false,
+                    showGroupPanel: true,
+                    canSelectRows: false,
+                    showFilter: true,
+                    filterOptions: self.filterOptions,
+                    enablePaging: true,
+                    pagingOptions: self.pagingOptions,
+                    sortInfo: self.sortInfo,
+                    rowHeight: 35
+                };
+
+                // Methods
+
+                self.get = function () {
+                    $loadingIndicator.show();
+
+                    $.ajax({
+                        url: productsUri,
+                        type: 'get',
+                        data: {
+                            'page': self.pagingOptions.currentPage(),
+                            'pageSize': self.pagingOptions.pageSize(),
+                            'filter': self.filterOptions.filterText == undefined ? '' : self.filterOptions.filterText(),
+                            'sort': self.sortInfo().column.field + ' ' + self.sortInfo().direction
+                        },
+                        contentType: 'application/json; charset=utf-8',
+                        success: function (data) {
+                            self.pagingOptions.totalServerItems(data.ProductCount);
+
+                            var productsArray = [];
+                            $.each(data.PageOfProducts, function (key, value) {
+                                productsArray.push(
+                                    new Product(value.ProductId, value.Name, value.Description, value.ProductCategoryId, value.ProductCategoryName));
+                            });
+                            self.products(productsArray);
+
+                            $loadingIndicator.hide();
+                        }
+                    });
+                };
+
+                // Subscriptions
+
+                self.pagingOptions.pageSize.subscribe(function (data) {
+                    self.pagingOptions.currentPage(1);
+                    self.get();
+                });
+
+                self.pagingOptions.currentPage.subscribe(function (data) {
+                    self.get();
+                });
+
+                self.sortInfo.subscribe(function (data) {
+                    self.pagingOptions.currentPage(1);
+                    self.get();
+                });
+            }
+
+            /////////////////////////////////////////////////////////////////
+            // Let's kick it all off
+
+            var vM = new ProductListVM();
+            ko.applyBindings(vM, $("#list-panel")[0]);
+            vM.get();
+        });
+
+    </script>
+}
+
