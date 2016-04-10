@@ -109,7 +109,7 @@
                             var productsArray = [];
                             $.each(data.PageOfProducts, function (key, value) {
                                 productsArray.push(
-                                    new Product(value.ProductId, value.Name, value.Description, value.ProductCategoryId, value.ProductCategoryName));
+                                    new Product(value.ProductId, value.Name, value.Description, value.ProductCategoryName));
                             });
                             self.products(productsArray);
 
